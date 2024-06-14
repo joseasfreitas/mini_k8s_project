@@ -214,3 +214,75 @@ spec:
   type: LoadBalancer
   externalIPs:
     - 3.211.4.35
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  default.conf: |
+    server {
+        listen 80;
+        server_name plik.jwdenta.cloudns.be;
+        
+        location / {
+            proxy_pass http://plik-service.default.svc.cluster.local:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    server {
+        listen 80;
+        server_name wikijs.jwdenta.cloudns.be;
+
+        location / {
+            proxy_pass http://wiki-service.default.svc.cluster.local:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    server {
+        listen 80;
+        server_name ots.jwdenta.cloudns.be;
+
+        location / {
+            proxy_pass http://secret-service.default.svc.cluster.local:7143;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+
+    server {
+        listen 80;
+        server_name ejbca.jwdenta.cloudns.be;
+
+        location / {
+            rewrite ^/(.*)$ https://$server_name/ejbca/adminweb/$1 permanent;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name ejbca.jwdenta.cloudns.be;
+
+        ssl_certificate certs/ejbca.jwdenta.cloudns.be.crt;
+        ssl_certificate_key certs/ejbca.jwdenta.cloudns.be.key;
+
+        location /ejbca/adminweb {
+            proxy_pass https://ejbca-service.default.svc.cluster.local:8443;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
