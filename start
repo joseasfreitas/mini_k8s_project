@@ -1,0 +1,28 @@
+#!/bin/bash
+
+source public-ip-addresses
+
+#echo "Expose the flask application deployment using a NodePort service"
+#kubectl expose deployment flask-nodeport --port 443 --type NodePort
+
+#echo "Retrieve the node port assigned to the flask-nodeport service"
+NODE_PORT=$(kubectl get svc nginx-ingress -n ingress-nginx \
+  --output=jsonpath='{range .spec.ports[0]}{.nodePort}')
+
+echo "Allow remote access to flask-nodeport node port"
+SECURITY_GROUP_ID=$(aws ec2 describe-security-groups \
+--filters "Name=tag:Name,Values=kubernetes-the-hard-way" \
+--output text --query 'SecurityGroups[0].GroupId')
+
+aws ec2 authorize-security-group-ingress \
+  --group-id "${SECURITY_GROUP_ID}" \
+  --protocol tcp \
+  --port "${NODE_PORT}" \
+  --cidr 0.0.0.0/0
+
+echo "Retrieve the external IP address of a worker instance"
+EXTERNAL_IP=${PUBLIC_ADDRESS[worker-0]}
+echo "${EXTERNAL_IP}"
+
+echo "Make an HTTP request using the external IP address and the nginx node port"
+curl -I http://"${EXTERNAL_IP}":"${NODE_PORT}"

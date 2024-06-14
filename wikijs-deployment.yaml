@@ -1,0 +1,48 @@
+# wikijs-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wikijs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wikijs
+  template:
+    metadata:
+      labels:
+        app: wikijs
+    spec:
+      containers:
+      - name: wikijs
+        image: requarks/wiki:2
+        env:
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_HOST
+          value: postgres
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: wikijs_user
+        - name: DB_PASS
+          value: wikijs_password
+        - name: DB_NAME
+          value: wikijs
+        ports:
+        - containerPort: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wikijs
+spec:
+  selector:
+    app: wikijs
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3000
+

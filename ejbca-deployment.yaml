@@ -1,0 +1,48 @@
+# ejbca-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ejbca-ce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ejbca-ce
+  template:
+    metadata:
+      labels:
+        app: ejbca-ce
+    spec:
+      containers:
+      - name: ejbca-ce
+        image: keyfactor/ejbca-ce:latest
+        env:
+        - name: DB_HOST
+          value: postgres
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_USER
+          value: ejbca_user
+        - name: DB_PASS
+          value: ejbca_password
+        - name: DB_NAME
+          value: ejbca
+        ports:
+        - containerPort: 8080
+        - containerPort: 8443
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ejbca-ce
+spec:
+  selector:
+    app: ejbca-ce
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+    - protocol: TCP
+      port: 443
+      targetPort: 8443
