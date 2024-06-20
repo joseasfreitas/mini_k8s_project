@@ -65,10 +65,21 @@ data:
   default.conf: |
     server {
         listen 80;
-        server_name plik.jwdenta.cloudns.be;
+        server_name ots.jwdenta.cloudns.be;
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    server {
+        listen 443 ssl;
+        server_name ots.jwdenta.cloudns.be;
+        ssl_certificate /etc/nginx/certs/fullchain.pem;
+        ssl_certificate_key /etc/nginx/certs/privkey.pem;
         
         location / {
-            proxy_pass http://plik.default.svc.cluster.local:8080;
+            proxy_pass http://onetime-secret.default.svc.cluster.local:7143;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -78,14 +89,10 @@ data:
 
     server {
         listen 80;
-        server_name ots.jwdenta.cloudns.be;
+        server_name plik.jwdenta.cloudns.be;
 
         location / {
-            proxy_pass http://onetime-secret.default.svc.cluster.local:7143;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            return 301 https://$host$request_uri;
         }
     }
 
@@ -98,21 +105,6 @@ data:
         
         location / {
             proxy_pass http://plik.default.svc.cluster.local:8080;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
-
-    server {
-        listen 443 ssl;
-        server_name ots.jwdenta.cloudns.be;
-        ssl_certificate /etc/nginx/certs/fullchain.pem;
-        ssl_certificate_key /etc/nginx/certs/privkey.pem;
-        
-        location / {
-            proxy_pass http://onetime-secret.default.svc.cluster.local:7143;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -125,11 +117,7 @@ data:
         server_name wikijs.jwdenta.cloudns.be;
 
         location / {
-            proxy_pass http://wikijs.default.svc.cluster.local:3000;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+            return 301 https://$host$request_uri;
         }
     }
     
@@ -147,6 +135,7 @@ data:
             proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
+
     server {
         listen 80;
         server_name ejbca.jwdenta.cloudns.be;
@@ -172,9 +161,3 @@ data:
         }
     }
 
-#    stream {
-#      server {
-#         listen 5432;
-#         proxy_pass postgres.default.svc.cluster.local:5432;
-#       }
-#    }
