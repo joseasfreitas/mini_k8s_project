@@ -2,8 +2,7 @@
 
 source public-ip-addresses
 
-# Define variables
-OnetimeSecretCertSecretName="onetime-secret-tls-secret"
+#OnetimeSecretCertSecretName="onetime-secret-tls-secret"
 
 # Apply the One-time Secret deployment YAML
 kubectl apply -f onetime-secret-deployment.yaml
@@ -11,47 +10,10 @@ kubectl apply -f onetime-secret-deployment.yaml
 # Wait for the One-time Secret deployment to be ready
 kubectl rollout status deployment/onetime-secret
 
-# Create the TLS secret for One-time Secret if not exists
-if ! kubectl get secret $OnetimeSecretCertSecretName; then
-  kubectl create secret tls $OnetimeSecretCertSecretName \
-    --cert=certs/test.crt \
-    --key=certs/test.key
-fi
-
 # Expose the One-time Secret service using a NodePort
-if ! kubectl get service onetime-secret-nodeport; then
-  kubectl expose deployment onetime-secret --type=NodePort --name=onetime-secret-nodeport --port=7143
-fi
-
-# Apply the Ingress configuration for One-time Secret
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: onetime-secret-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  tls:
-  - hosts:
-    - onetime.example.com
-    secretName: $OnetimeSecretCertSecretName
-  rules:
-  - host: onetime.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: onetime-secret
-            port:
-              number: 80
-EOF
-
-# Wait for the Ingress to be created
-kubectl get ingress onetime-secret-ingress
+#if ! kubectl get service onetime-secret-nodeport; then
+#  kubectl expose deployment onetime-secret --type=NodePort --name=onetime-secret-nodeport --port=7143
+#fi
 
 # Expose the One-time Secret service using a NodePort
 #kubectl expose deployment onetime-secret --port 443 --type NodePort

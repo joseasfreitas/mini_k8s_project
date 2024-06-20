@@ -45,15 +45,12 @@ spec:
       protocol: TCP
       port: 80
       targetPort: 80
-      nodePort: 30080
+#      nodePort: 30080
     - name: https
       protocol: TCP
       port: 443
       targetPort: 443
-      nodePort: 30443
-    - name: post
-      protocol: TCP
-      port: 5432
+#      nodePort: 30443
   type: LoadBalancer
 
 ---
@@ -78,41 +75,10 @@ data:
 
     server {
         listen 80;
-        server_name ots.jwdenta.cloudns.be;
+        server_name wikijs.jwdenta.cloudns.be;
 
         location / {
-            proxy_pass http://onetime-secret.default.svc.cluster.local:7143;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
-
-    server {
-        listen 443 ssl;
-        server_name plik.jwdenta.cloudns.be;
-        
-        ssl_certificate /etc/nginx/certs/fullchain.pem;
-        ssl_certificate_key /etc/nginx/certs/privkey.pem;
-        
-        location / {
-            proxy_pass http://plik.default.svc.cluster.local:8080;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
-
-    server {
-        listen 443 ssl;
-        server_name ots.jwdenta.cloudns.be;
-        ssl_certificate /etc/nginx/certs/fullchain.pem;
-        ssl_certificate_key /etc/nginx/certs/privkey.pem;
-        
-        location / {
-            proxy_pass http://onetime-secret.default.svc.cluster.local:7143;
+            proxy_pass http://wikijs.default.svc.cluster.local:3000;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -122,31 +88,18 @@ data:
 
     server {
         listen 80;
-        server_name wikijs.jwdenta.cloudns.be;
+        server_name ots.jwdenta.cloudns.be;
 
         location / {
-            proxy_pass http://wikijs.default.svc.cluster.local:3000;
+            proxy_pass http://onetimesecret.default.svc.cluster.local:7143;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
-    
-    server {
-        listen 443 ssl;
-        server_name wikijs.jwdenta.cloudns.be;
-        ssl_certificate /etc/nginx/certs/fullchain.pem;
-        ssl_certificate_key /etc/nginx/certs/privkey.pem;
 
-        location / {
-            proxy_pass http://wikijs.default.svc.cluster.local:3000;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-        }
-    }
+
     server {
         listen 80;
         server_name ejbca.jwdenta.cloudns.be;
@@ -160,10 +113,10 @@ data:
         listen 443 ssl;
         server_name ejbca.jwdenta.cloudns.be;
 
-        ssl_certificate /etc/nginx/certs/fullchain.pem;
-        ssl_certificate_key /etc/nginx/certs/privkey.pem;
+        ssl_certificate certs/ejbca.jwdenta.cloudns.be.crt;
+        ssl_certificate_key certs/ejbca.jwdenta.cloudns.be.key;
 
-        location / {
+        location /ejbca/adminweb {
             proxy_pass https://ejbca.default.svc.cluster.local:8443;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
@@ -171,10 +124,3 @@ data:
             proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
-
-#    stream {
-#      server {
-#         listen 5432;
-#         proxy_pass postgres.default.svc.cluster.local:5432;
-#       }
-#    }

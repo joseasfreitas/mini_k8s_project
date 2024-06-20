@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ejbca-ce
+  name: ejbca
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: ejbca-ce
+      app: ejbca
   template:
     metadata:
       labels:
-        app: ejbca-ce
+        app: ejbca
     spec:
       containers:
-      - name: ejbca-ce
+      - name: ejbca
         image: keyfactor/ejbca-ce:latest
         env:
         - name: DB_HOST
@@ -28,21 +28,21 @@ spec:
         - name: DB_NAME
           value: ejbca
         ports:
-        - containerPort: 8080
+#        - containerPort: 8080
         - containerPort: 8443
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: ejbca-ce
+  name: ejbca
 spec:
   selector:
-    app: ejbca-ce
+    app: ejbca
   ports:
+#    - protocol: TCP
+#      port: 80
+#      targetPort: 8080
     - protocol: TCP
-      port: 80
-      targetPort: 8080
-    - protocol: TCP
-      port: 443
+      port: 8443
       targetPort: 8443

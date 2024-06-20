@@ -2,66 +2,13 @@
 
 source public-ip-addresses
 
-# Define variables
-EJBCACertSecretName="ejbca-tls-secret"
 
 # Apply the EJBCA deployment YAML
 kubectl apply -f ejbca-deployment.yaml
 
 # Wait for the EJBCA deployment to be ready
-kubectl rollout status deployment/ejbca-ce
+kubectl rollout status deployment/ejbca
 
-# Expose the EJBCA service using a NodePort
-if ! kubectl get service ejbca-ce-nodeport; then
-  kubectl expose deployment ejbca-ce --type=NodePort --name=ejbca-ce-nodeport --port=8080 --port=8443
-fi
-
-# Create the TLS secret for EJBCA if not exists
-if ! kubectl get secret $EJBCACertSecretName; then
-  kubectl create secret tls $EJBCACertSecretName \
-    --cert=certs/test.crt \
-    --key=certs/test.key
-fi
-
-# Apply the Ingress configuration for EJBCA
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ejbca-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  tls:
-  - hosts:
-    - cert.ejbca.com
-    secretName: $EJBCACertSecretName
-  rules:
-  - host: cert.ejbca.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ejbca-ce
-            port:
-              number: 8080
-  - host: cert.ejbca.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ejbca-ce
-            port:
-              number: 8443
-EOF
-
-# Wait for the Ingress to be created
-kubectl get ingress ejbca-ingress
 
 # Expose the EJBCA service using a NodePort
 #kubectl expose deployment ejbca-ce --port 443 --type NodePort

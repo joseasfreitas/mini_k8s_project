@@ -1,9 +1,9 @@
 #!/bin/bash
 
-source public-ip-addresses
+#source public-ip-addresses
 
 # Define variables
-PlikCertSecretName="plik-tls-secret"
+#PlikCertSecretName="plik-tls-secret"
 
 # Apply the Plik deployment YAML
 kubectl apply -f plik-deployment.yaml
@@ -12,46 +12,9 @@ kubectl apply -f plik-deployment.yaml
 kubectl rollout status deployment/plik
 
 # Expose the Plik service using a NodePort
-if ! kubectl get service plik-nodeport; then
-  kubectl expose deployment plik --type=NodePort --name=plik-nodeport --port=8080
+if ! kubectl get service plik; then
+  kubectl expose deployment plik --type=NodePort --name=plik-service --port=8080
 fi
-
-# Create the TLS secret for Plik if not exists
-if ! kubectl get secret $PlikCertSecretName; then
-  kubectl create secret tls $PlikCertSecretName \
-    --cert=certs/test.crt \
-    --key=certs/test.key
-fi
-
-# Apply the Ingress configuration for Plik
-cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: plik-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  tls:
-  - hosts:
-    - plik.example.com
-    secretName: $PlikCertSecretName
-  rules:
-  - host: plik.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: plik
-            port:
-              number: 80
-EOF
-
-# Wait for the Ingress to be created
-kubectl get ingress plik-ingress
 
 # Expose the Plik service using a NodePort
 #kubectl expose deployment plik --port 443 --type NodePort
