@@ -13,14 +13,12 @@ spec:
       labels:
         app: postgres
     spec:
-      securityContext:
-        fsGroup: 1000 # Replace with the correct group ID from your EFS Access Point
       containers:
       - name: postgres
         image: postgres:13
         env:
         - name: POSTGRES_DB
-          value: defaultdb
+          value: postgresql
         - name: POSTGRES_USER
           value: postgres
         - name: POSTGRES_PASSWORD
@@ -28,19 +26,13 @@ spec:
         ports:
         - containerPort: 5432
         volumeMounts:
-        - name: postgres-storage
-          mountPath: /var/lib/postgresql/data
         - name: init-db
           mountPath: /docker-entrypoint-initdb.d
-        securityContext:
-          runAsUser: 1000 # Replace with the correct user ID from your EFS Access Point
       volumes:
-      - name: postgres-storage
-        persistentVolumeClaim:
-          claimName: efs-pvc
       - name: init-db
         configMap:
           name: postgres-init-scripts
+
 ---
 apiVersion: v1
 kind: ConfigMap
