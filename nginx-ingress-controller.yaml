@@ -1,216 +1,173 @@
 # nginx-ingress-controller.yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: ingress-nginx
-
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: nginx-ingress-serviceaccount
-  namespace: ingress-nginx
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: nginx-ingress-clusterrole
-rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  - endpoints
-  - nodes
-  - pods
-  - secrets
-  verbs:
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - extensions
-  - networking.k8s.io
-  resources:
-  - ingresses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - extensions
-  - networking.k8s.io
-  resources:
-  - ingresses/status
-  verbs:
-  - update
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - patch
-- apiGroups:
-  - networking.k8s.io
-  resources:
-  - ingressclasses
-  verbs:
-  - get
-  - list
-  - watch
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: nginx-ingress-clusterrolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: nginx-ingress-clusterrole
-subjects:
-- kind: ServiceAccount
-  name: nginx-ingress-serviceaccount
-  namespace: ingress-nginx
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-ingress-controller
-  namespace: ingress-nginx
+  name: nginx-proxy
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nginx-ingress
+      app: nginx
   template:
     metadata:
       labels:
-        app: nginx-ingress
+        app: nginx
     spec:
-      serviceAccountName: nginx-ingress-serviceaccount
       containers:
-      - name: nginx-ingress
-        image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.32.0
-        args:
-          - /nginx-ingress-controller
-          - --configmap=$(POD_NAMESPACE)/nginx-configuration
-          - --default-backend-service=$(POD_NAMESPACE)/default-http-backend
-          - --publish-service=ingress-nginx/nginx-ingress  # Specify the modified service name
-        env:
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
+      - name: nginx
+        image: nginx:latest
         ports:
         - containerPort: 80
         - containerPort: 443
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: app-ingress
-  namespace: default
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-spec:
-  tls:
-  - hosts:
-    - ejbca.jwdenta.cloudns.be
-    secretName: ejbca-tls-secret # Secret for EJBCA
-  - hosts:
-    - plik.jwdenta.cloudns.be
-    secretName: plik-tls-secret # Secret for Plik
-  - hosts:
-    - wikijs.jwdenta.cloudns.be
-    secretName: wiki-tls-secret # Secret for Wiki.js
-  - hosts:
-    - ots.jwdenta.cloudns.be
-    secretName: onetime-tls-secret # Secret for Onetime Secret
-  rules:
-  - host: ejbca.jwdenta.cloudns.be
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: ejbca-ce
-            port:
-              number: 8443
-  - host: plik.jwdenta.cloudns.be
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: plik
-            port:
-              number: 8080
-  - host: wikijs.jwdenta.cloudns.be
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: wikijs
-            port:
-              number: 3000
-  - host: ots.jwdenta.cloudns.be
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: onetime-secret
-            port:
-              number: 7143
-
+        - containerPort: 5432
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: nginx-certs
+          mountPath: /etc/nginx/certs
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+      - name: nginx-certs
+        secret:
+          secretName: jwdenta.cloudns.be
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-ingress
-  namespace: ingress-nginx
+  name: nginx-service
 spec:
   selector:
-    app: nginx-ingress
+    app: nginx
   ports:
     - name: http
       protocol: TCP
       port: 80
       targetPort: 80
-      nodePort: 30080  # Specify the node port you want to use
+      nodePort: 30080
     - name: https
       protocol: TCP
       port: 443
       targetPort: 443
-      nodePort: 30443  # Specify the node port you want to use
+      nodePort: 30443
+    - name: postgresql
+      protocol: TCP
+      port: 5432
   type: LoadBalancer
-  externalIPs:
-    - 3.211.4.35
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx.conf: |
+    events {}
+    http {
+        server {
+            listen 80;
+            server_name ots.jwdenta.cloudns.be;
+
+            location / {
+                return 301 https://$host$request_uri;
+            }
+        }
+
+        server {
+            listen 443 ssl;
+            server_name ots.jwdenta.cloudns.be;
+            ssl_certificate /etc/nginx/certs/fullchain.pem;
+            ssl_certificate_key /etc/nginx/certs/privkey.pem;
+            
+            location / {
+                proxy_pass http://onetime-secret.default.svc.cluster.local:7143;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+
+        server {
+            listen 80;
+            server_name plik.jwdenta.cloudns.be;
+
+            location / {
+                return 301 https://$host$request_uri;
+            }
+        }
+
+        server {
+            listen 443 ssl;
+            server_name plik.jwdenta.cloudns.be;
+            
+            ssl_certificate /etc/nginx/certs/fullchain.pem;
+            ssl_certificate_key /etc/nginx/certs/privkey.pem;
+            
+            location / {
+                proxy_pass http://plik.default.svc.cluster.local:8080;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+
+        server {
+            listen 80;
+            server_name wikijs.jwdenta.cloudns.be;
+
+            location / {
+                return 301 https://$host$request_uri;
+            }
+        }
+       
+        server {
+            listen 443 ssl;
+            server_name wikijs.jwdenta.cloudns.be;
+            ssl_certificate /etc/nginx/certs/fullchain.pem;
+            ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+            location / {
+                proxy_pass http://wikijs.default.svc.cluster.local:3000;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+
+        server {
+            listen 80;
+            server_name ejbca.jwdenta.cloudns.be;
+
+            location / {
+                rewrite ^/(.*)$ https://$server_name/$1 permanent;
+            }
+        }
+
+        server {
+            listen 443 ssl;
+            server_name ejbca.jwdenta.cloudns.be;
+
+            ssl_certificate /etc/nginx/certs/fullchain.pem;
+            ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+            location / {
+                proxy_pass https://ejbca.default.svc.cluster.local:8443;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+    }
+    stream {
+      server {
+         listen 5432;
+         proxy_pass postgres.default.svc.cluster.local:5432;
+       }
+    }
